@@ -1,20 +1,11 @@
 const { Queue, Worker } = require('bullmq');
+const Redis = require('ioredis');
 
-const REDIS_CONFIG = {
-  connection: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
-  },
-  // Default job options
-  defaultJobOptions: {
-    attempts: 3, // Retry failed jobs up to 3 times
-    backoff: {
-      type: 'exponential',
-      delay: 1000, // Initial delay of 1 second
-    },
-    removeOnComplete: 100, // Keep only last 100 completed jobs
-    removeOnFail: 200, // Keep only last 200 failed jobs
-  }
+// Redis connection configuration
+const redisConfig = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: process.env.REDIS_PORT || 6379,
+  maxRetriesPerRequest: null,
 };
 
 // Queue names
@@ -22,25 +13,41 @@ const QUEUE_NAMES = {
   JOB_IMPORT: 'job-import',
 };
 
-// Create a new queue instance
+// Create Redis connection
+const connection = new Redis(redisConfig);
+
+// Create queue
 const createQueue = (queueName) => {
   return new Queue(queueName, {
-    connection: REDIS_CONFIG.connection,
-    defaultJobOptions: REDIS_CONFIG.defaultJobOptions,
+    connection: redisConfig,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000,
+      },
+      removeOnComplete: 100,  // Keep last 100 completed jobs
+      removeOnFail: 200,      // Keep last 200 failed jobs
+    },
   });
 };
 
-// Create a new worker instance
+// Create worker
 const createWorker = (queueName, processor) => {
   return new Worker(queueName, processor, {
-    connection: REDIS_CONFIG.connection,
-    concurrency: 3, // Process up to 3 jobs simultaneously
+    connection: redisConfig,
+    concurrency: 3,
+    limiter: {
+      max: 100,        // Max jobs per time window
+      duration: 1000,  // Time window in ms
+    },
   });
 };
 
+// Export queue manager functions and constants
 module.exports = {
-  REDIS_CONFIG,
-  QUEUE_NAMES,
+  connection,
   createQueue,
   createWorker,
+  QUEUE_NAMES,
 }; 

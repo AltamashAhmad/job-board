@@ -1,21 +1,36 @@
 const mongoose = require('mongoose');
 
 const importLogSchema = new mongoose.Schema({
-  sourceUrl: {
+  source: {
     type: String,
     required: true
   },
-  timestamp: {
+  sourceUrl: {
+    type: String,
+    required: true,
+    default: 'N/A'  // Default value for test purposes
+  },
+  startTime: {
     type: Date,
-    default: Date.now
+    required: true
+  },
+  endTime: {
+    type: Date
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'in_progress', 'completed', 'failed'],
+    default: 'pending'
   },
   totalFetched: {
     type: Number,
-    required: true
+    required: true,
+    default: 0
   },
   totalImported: {
     type: Number,
-    required: true
+    required: true,
+    default: 0
   },
   newJobs: {
     type: Number,
@@ -29,17 +44,16 @@ const importLogSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  errorLogs: [{  // Changed from 'errors' to 'errorLogs'
+  errorLogs: [{
     message: String,
-    jobData: Object
-  }],
-  status: {
-    type: String,
-    enum: ['completed', 'failed', 'in_progress'],
-    default: 'in_progress'
-  }
+    jobData: Object,
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
-  suppressReservedKeysWarning: true  // Add this option to suppress the warning
+  timestamps: true
 });
 
 module.exports = mongoose.model('ImportLog', importLogSchema); 
