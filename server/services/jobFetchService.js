@@ -1,16 +1,10 @@
 const axios = require('axios');
 const { parseXMLToJSON } = require('../utils/xmlParser');
 const { JOB_SOURCES } = require('../config/jobSources');
-const ImportLog = require('../models/ImportLog');
+const jobProducerService = require('./jobProducerService');
 
 class JobFetchService {
   async fetchJobsFromSource(source) {
-    const importLog = await ImportLog.create({
-      sourceUrl: source.url,
-      totalFetched: 0,
-      totalImported: 0
-    });
-
     try {
       // Fetch XML data
       const response = await axios.get(source.url);
@@ -22,21 +16,15 @@ class JobFetchService {
       // Normalize data based on source
       const jobs = this.normalizeJobData(jsonData, source);
 
-      // Update import log
-      importLog.totalFetched = jobs.length;
-      await importLog.save();
+      // Add jobs to queue and create import log
+      const importLog = await jobProducerService.addJobsToQueue(jobs, source.url);
 
       return {
         jobs,
         importLog
       };
     } catch (error) {
-      importLog.status = 'failed';
-      importLog.errorLogs = [{  // Changed from errors to errorLogs
-        message: error.message,
-        jobData: null
-      }];
-      await importLog.save();
+      console.error(`Error fetching jobs from ${source.name}:`, error);
       throw error;
     }
   }
@@ -94,6 +82,10 @@ class JobFetchService {
     // Basic location extraction from title (can be improved)
     const locationMatch = title.match(/\((.*?)\)/);
     return locationMatch ? locationMatch[1] : 'Not specified';
+  }
+
+  async getQueueStatus() {
+    return await jobProducerService.getQueueStatus();
   }
 }
 
