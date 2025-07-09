@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: job-board-api
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+    autoDeploy: true 
