@@ -1,16 +1,27 @@
 services:
   - type: web
-    name: job-board-api
+    name: job-board-backend
     env: node
     buildCommand: cd server && npm install
-    startCommand: cd server && npm start
+    startCommand: cd server && node index.js
     envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://altamashahmadajaz2:9E6EBh5zogn9HPni@cluster0.yrvvngf.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
+      - key: REDIS_URL
+        value: redis://default:9Dst48U4sBjJC9w4wSHBZVmqRm5UinE3@redis-11515.crce182.ap-south-1-1.ec2.redns.redis-cloud.com:11515
       - key: NODE_ENV
         value: production
-      - key: MONGODB_URI
-        sync: false
-      - key: REDIS_URL
-        sync: false
       - key: CORS_ORIGIN
-        sync: false
-    autoDeploy: true 
+        value: https://job-board-kappa-murex.vercel.app
+  - type: worker
+    name: job-board-worker
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && node workers/startWorker.js
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://altamashahmadajaz2:9E6EBh5zogn9HPni@cluster0.yrvvngf.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
+      - key: REDIS_URL
+        value: redis://default:9Dst48U4sBjJC9w4wSHBZVmqRm5UinE3@redis-11515.crce182.ap-south-1-1.ec2.redns.redis-cloud.com:11515
+      - key: NODE_ENV
+        value: production 
