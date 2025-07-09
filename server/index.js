@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const cronService = require('./services/cronService');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./config/swagger');
+const { connection: redisConnection } = require('./config/redis');
 
 // Import routes
 const importRoutes = require('./routes/importRoutes');
@@ -26,9 +27,35 @@ app.use(morgan('dev')); // Logging middleware
 // Swagger UI setup
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+// Enhanced health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check MongoDB connection
+    const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    // Check Redis connection
+    const redisStatus = redisConnection.status === 'ready' ? 'connected' : 'disconnected';
+
+    // Overall status
+    const isHealthy = mongoStatus === 'connected' && redisStatus === 'connected';
+
+    res.json({
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      services: {
+        mongodb: mongoStatus,
+        redis: redisStatus
+      },
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Health check failed',
+      error: error.message
+    });
+  }
 });
 
 // Connect to MongoDB and start services
