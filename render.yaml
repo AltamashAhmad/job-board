@@ -3,7 +3,7 @@ services:
     name: job-board-backend
     env: node
     buildCommand: cd server && npm install
-    startCommand: cd server && node index.js
+    startCommand: cd server && npm install && node index.js
     envVars:
       - key: MONGODB_URI
         value: mongodb+srv://altamashahmadajaz2:9E6EBh5zogn9HPni@cluster0.yrvvngf.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
@@ -17,7 +17,7 @@ services:
     name: job-board-worker
     env: node
     buildCommand: cd server && npm install
-    startCommand: cd server && node workers/startWorker.js
+    startCommand: cd server && npm install && node workers/startWorker.js
     envVars:
       - key: MONGODB_URI
         value: mongodb+srv://altamashahmadajaz2:9E6EBh5zogn9HPni@cluster0.yrvvngf.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
