@@ -26,20 +26,35 @@ class JobProducerService {
 
   async addJobsToQueue(jobs, sourceUrl, sourceName) {
     try {
-      // Create import log first
-      const importLog = await ImportLog.create({
-        source: sourceName,
-        sourceUrl,
-        startTime: new Date(),
-        totalFetched: jobs.length,
-        totalImported: 0,
-        status: 'in_progress',
-        newJobs: 0,
-        updatedJobs: 0,
-        failedJobs: 0
-      });
-
-      console.log(`Created import log with ID: ${importLog._id} for source: ${sourceName}`);
+      // Create import log first with retry mechanism
+      let importLog;
+      let retries = 3;
+      
+      while (retries > 0) {
+        try {
+          importLog = await ImportLog.create({
+            source: sourceName,
+            sourceUrl,
+            startTime: new Date(),
+            totalFetched: jobs.length,
+            totalImported: 0,
+            status: 'in_progress',
+            newJobs: 0,
+            updatedJobs: 0,
+            failedJobs: 0
+          });
+          
+          console.log(`Created import log with ID: ${importLog._id} for source: ${sourceName}`);
+          break; // Success, exit retry loop
+        } catch (error) {
+          retries--;
+          if (retries === 0) {
+            throw error; // No more retries, throw the error
+          }
+          console.log(`MongoDB connection retry ${3 - retries}/3, waiting 1 second...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
 
       // Wait for import log to be fully saved
       await importLog.save();

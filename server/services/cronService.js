@@ -1,5 +1,6 @@
 const cron = require('node-cron');
-const { fetchJobsFromAllSources } = require('./jobFetchService');
+const jobFetchService = require('./jobFetchService');
+const { JOB_SOURCES } = require('../config/jobSources');
 
 /**
  * Starts the cron jobs for fetching jobs
@@ -12,7 +13,14 @@ async function startCronJobs() {
   const scheduledJob = cron.schedule('0 */6 * * *', async () => {
     console.log('Running scheduled job fetch...');
     try {
-      await fetchJobsFromAllSources();
+      for (const source of JOB_SOURCES) {
+        try {
+          await jobFetchService.fetchJobsFromSource(source);
+          console.log(`Scheduled job fetch completed for ${source.name}`);
+        } catch (error) {
+          console.error(`Error fetching jobs from ${source.name}:`, error.message);
+        }
+      }
       console.log('Scheduled job fetch completed successfully');
     } catch (error) {
       console.error('Error in scheduled job fetch:', error);
@@ -22,7 +30,14 @@ async function startCronJobs() {
   // Run initial fetch
   try {
     console.log('Running initial job fetch...');
-    await fetchJobsFromAllSources();
+    for (const source of JOB_SOURCES) {
+      try {
+        await jobFetchService.fetchJobsFromSource(source);
+        console.log(`Initial job fetch completed for ${source.name}`);
+      } catch (error) {
+        console.error(`Error fetching jobs from ${source.name}:`, error.message);
+      }
+    }
     console.log('Initial job fetch completed successfully');
   } catch (error) {
     console.error('Error in initial job fetch:', error);

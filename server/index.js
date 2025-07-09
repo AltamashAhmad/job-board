@@ -89,8 +89,13 @@ app.get('/health', async (req, res) => {
 // Connect to MongoDB and start services
 async function startServer() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Connect to MongoDB with optimized connection options
+    await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false
+    });
     console.log('Connected to MongoDB');
 
     // Start the server
