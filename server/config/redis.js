@@ -8,6 +8,9 @@ const redisConfig = process.env.REDIS_URL
       enableReadyCheck: false,
       retryStrategy: (times) => {
         return Math.min(times * 50, 2000);
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     }
   : {
@@ -30,6 +33,10 @@ const connection = new Redis(redisConfig);
 
 connection.on('error', (error) => {
   console.error('Redis connection error:', error);
+  // Don't exit the process on connection error, let it retry
+  if (error.code !== 'ECONNREFUSED') {
+    console.error('Fatal Redis error:', error);
+  }
 });
 
 connection.on('connect', () => {

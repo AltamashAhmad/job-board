@@ -61,8 +61,15 @@ app.get('/health', async (req, res) => {
 // Connect to MongoDB and start services
 async function startServer() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Connect to MongoDB with updated options
+    await mongoose.connect(process.env.MONGODB_URI, {
+      ssl: true,
+      sslValidate: true,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      retryWrites: true,
+      w: 'majority'
+    });
     console.log('Connected to MongoDB');
 
     // Start cron service
@@ -89,7 +96,10 @@ async function startServer() {
     });
   } catch (error) {
     console.error('Failed to start server:', error);
-    process.exit(1);
+    // Don't exit immediately on connection error
+    if (!error.message.includes('ECONNREFUSED')) {
+      process.exit(1);
+    }
   }
 }
 
