@@ -1,6 +1,93 @@
 const express = require('express');
 const router = express.Router();
 const Job = require('../models/Job');
+const ImportLog = require('../models/ImportLog');
+
+// Dashboard statistics
+router.get('/dashboard', async (req, res) => {
+  try {
+    console.log('Fetching dashboard data...');
+    
+    // Get overall stats
+    const totalJobs = await Job.countDocuments();
+    console.log('Total jobs:', totalJobs);
+    
+    // Get recent imports with error handling
+    let recentImports = [];
+    try {
+      recentImports = await ImportLog.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+      console.log('Recent imports found:', recentImports.length);
+    } catch (importError) {
+      console.error('Error fetching recent imports:', importError);
+      recentImports = [];
+    }
+    
+    // Calculate success rate safely
+    const successRate = recentImports.length > 0
+      ? (recentImports.filter(log => log.status === 'completed').length / recentImports.length) * 100
+      : 0;
+    
+    // Get source distribution with error handling
+    let sourceStats = [];
+    try {
+      const sources = await ImportLog.aggregate([
+        { $group: {
+          _id: '$source',
+          totalJobs: { $sum: '$totalFetched' }
+        }},
+        { $sort: { totalJobs: -1 } }
+      ]);
+      console.log('Sources found:', sources.length);
+
+      const totalJobsAcrossSources = sources.reduce((sum, src) => sum + src.totalJobs, 0);
+      sourceStats = sources.map(src => ({
+        source: src._id,
+        totalJobs: src.totalJobs,
+        percentage: totalJobsAcrossSources > 0 
+          ? Math.round((src.totalJobs / totalJobsAcrossSources) * 100)
+          : 0
+      }));
+    } catch (sourceError) {
+      console.error('Error calculating source stats:', sourceError);
+      sourceStats = [];
+    }
+
+    // Calculate changes from previous import safely
+    let jobsGrowth = 0;
+    if (recentImports.length >= 2) {
+      const [latest, previous] = recentImports;
+      if (previous.totalFetched > 0) {
+        jobsGrowth = ((latest.totalFetched - previous.totalFetched) / previous.totalFetched) * 100;
+      }
+    }
+
+    const response = {
+      stats: {
+        totalJobs,
+        successRate: Math.round(successRate),
+        failedJobs: recentImports.reduce((sum, log) => sum + (log.failedJobs || 0), 0),
+        activeSources: sourceStats.length,
+        jobsGrowth: Math.round(jobsGrowth),
+        successRateChange: 0,
+        failureRateChange: 0,
+      },
+      sourceStats,
+      recentActivity: recentImports
+    };
+
+    console.log('Sending dashboard response');
+    res.json(response);
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch dashboard data',
+      details: error.message 
+    });
+  }
+});
 
 /**
  * @swagger

@@ -91,11 +91,34 @@ const jobSchema = new mongoose.Schema({
 
 // Indexes
 jobSchema.index({ source: 1, externalId: 1 }, { unique: true });
+jobSchema.index({ company: 1 });
+jobSchema.index({ location: 1 });
+jobSchema.index({ skills: 1 });
+jobSchema.index({ status: 1 });
 jobSchema.index({ createdAt: -1 });
-jobSchema.index({ updatedAt: -1 });
-jobSchema.index({ title: 'text', description: 'text', company: 'text' });
-jobSchema.index({ 'metadata.lastChecked': 1 });
+jobSchema.index({ 'salary.min': 1, 'salary.max': 1 });
+jobSchema.index({ category: 1, type: 1 });
+
+// Compound indexes for common queries
 jobSchema.index({ status: 1, createdAt: -1 });
+jobSchema.index({ source: 1, status: 1 });
+jobSchema.index({ skills: 1, status: 1 });
+jobSchema.index({ location: 1, status: 1 });
+
+// Text index for search
+jobSchema.index({ 
+  title: 'text', 
+  description: 'text', 
+  company: 'text',
+  skills: 'text'
+}, {
+  weights: {
+    title: 10,
+    company: 5,
+    skills: 3,
+    description: 1
+  }
+});
 
 // Instance methods
 jobSchema.methods.markAsExpired = async function() {
