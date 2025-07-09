@@ -1,37 +1,17 @@
 const Redis = require('ioredis');
 
 function createRedisClient() {
-  const config = process.env.REDIS_URL
-    ? {
-        url: process.env.REDIS_URL,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        retryStrategy: (times) => {
-          const delay = Math.min(times * 50, 2000);
-          console.log(`Retrying Redis connection in ${delay}ms...`);
-          return delay;
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      }
-    : {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        retryStrategy: (times) => {
-          const delay = Math.min(times * 50, 2000);
-          console.log(`Retrying Redis connection in ${delay}ms...`);
-          return delay;
-        }
-      };
-
-  const client = new Redis(config);
+  const client = new Redis(process.env.REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    },
+    lazyConnect: true // Only connect when needed
+  });
 
   client.on('error', (error) => {
-    console.error('Redis connection error:', error);
-    // Don't exit on connection errors, let it retry
+    console.error('Redis connection error:', error.message);
   });
 
   client.on('connect', () => {

@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: job-board-api
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: PORT
+        value: 3000
+      - key: CORS_ORIGIN
+        value: https://job-board-kappa-murex.vercel.app
+
+  - type: worker
+    name: job-board-worker
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node workers/startWorker.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false 
