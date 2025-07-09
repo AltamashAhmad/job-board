@@ -6,6 +6,7 @@ const cronService = require('./services/cronService');
 const { startWorker } = require('./workers/jobWorker');
 const jobRoutes = require('./routes/jobRoutes');
 const importRoutes = require('./routes/importRoutes');
+const { createRedisClient } = require('./config/redis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,16 +23,67 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/imports', importRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    env: {
-      node_env: process.env.NODE_ENV,
-      redis_url: process.env.REDIS_URL ? '✓ set' : '✗ not set',
-      mongodb_uri: process.env.MONGODB_URI ? '✓ set' : '✗ not set'
+app.get('/health', async (req, res) => {
+  try {
+    // Check MongoDB connection
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    
+    // Check Redis connection
+    const redisClient = createRedisClient(false);
+    let isRedisConnected = false;
+    try {
+      await redisClient.ping();
+      isRedisConnected = true;
+    } catch (error) {
+      console.error('Redis health check failed:', error);
+    } finally {
+      redisClient.disconnect();
     }
-  });
+
+    // Get memory usage
+    const memoryUsage = process.memoryUsage();
+
+    const health = {
+      status: isMongoConnected && isRedisConnected ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      services: {
+        mongodb: {
+          connected: isMongoConnected,
+          status: isMongoConnected ? 'up' : 'down'
+        },
+        redis: {
+          connected: isRedisConnected,
+          status: isRedisConnected ? 'up' : 'down'
+        }
+      },
+      environment: {
+        node_env: process.env.NODE_ENV,
+        node_version: process.version,
+        platform: process.platform,
+        memory: {
+          heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+          heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + 'MB',
+          rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB'
+        }
+      },
+      config: {
+        redis_url: process.env.REDIS_URL ? '✓ set' : '✗ not set',
+        mongodb_uri: process.env.MONGODB_URI ? '✓ set' : '✗ not set',
+        cors_origin: process.env.CORS_ORIGIN || 'default',
+        queue_batch_size: process.env.QUEUE_BATCH_SIZE || 'default',
+        queue_max_concurrency: process.env.QUEUE_MAX_CONCURRENCY || 'default'
+      }
+    };
+
+    res.json(health);
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
 });
 
 // Connect to MongoDB and start services
@@ -78,5 +130,8 @@ process.on('unhandledRejection', (error) => {
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  process.exit(1);
+  // Give the server time to finish current requests before exiting
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
 }); 
