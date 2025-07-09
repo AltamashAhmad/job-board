@@ -17,4 +17,5 @@ services:
       - key: PORT
         value: 3000
       - key: CORS_ORIGIN
-        value: https://job-board-kappa-murex.vercel.app 
+        value: https://job-board-kappa-murex.vercel.app
+    healthCheckPath: /health 
