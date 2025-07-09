@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Worker } = require('bullmq');
-const { createRedisClient, QUEUE_NAMES } = require('../config/redis');
+const { createRedisClient } = require('../config/redis');
+const { QUEUE_NAMES } = require('../config/constants');
 const Job = require('../models/Job');
 const mongoose = require('mongoose');
 
@@ -34,40 +35,45 @@ async function processJob(job) {
 }
 
 async function startWorker() {
-  // Ensure MongoDB is connected
-  if (mongoose.connection.readyState !== 1) {
-    await mongoose.connect(process.env.MONGODB_URI);
-  }
-
-  // Create Redis connection specifically for the worker
-  const connection = createRedisClient(true);
-
-  const worker = new Worker(QUEUE_NAMES.JOB_IMPORT, processJob, {
-    connection,
-    concurrency: 5,
-    removeOnComplete: {
-      age: 3600, // Keep completed jobs for 1 hour
-      count: 1000 // Keep last 1000 completed jobs
-    },
-    removeOnFail: {
-      age: 24 * 3600 // Keep failed jobs for 24 hours
+  try {
+    // Ensure MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGODB_URI);
     }
-  });
 
-  worker.on('completed', (job) => {
-    console.log(`Job ${job.id} completed successfully`);
-  });
+    // Create Redis connection specifically for the worker
+    const connection = createRedisClient(true);
 
-  worker.on('failed', (job, err) => {
-    console.error(`Job ${job.id} failed:`, err);
-  });
+    const worker = new Worker(QUEUE_NAMES.JOB_IMPORT, processJob, {
+      connection,
+      concurrency: 5,
+      removeOnComplete: {
+        age: 3600, // Keep completed jobs for 1 hour
+        count: 1000 // Keep last 1000 completed jobs
+      },
+      removeOnFail: {
+        age: 24 * 3600 // Keep failed jobs for 24 hours
+      }
+    });
 
-  worker.on('error', (err) => {
-    console.error('Worker error:', err);
-  });
+    worker.on('completed', (job) => {
+      console.log(`Job ${job.id} completed successfully`);
+    });
 
-  console.log('Job worker started');
-  return worker;
+    worker.on('failed', (job, err) => {
+      console.error(`Job ${job.id} failed:`, err);
+    });
+
+    worker.on('error', (err) => {
+      console.error('Worker error:', err);
+    });
+
+    console.log('Job worker started');
+    return worker;
+  } catch (error) {
+    console.error('Error starting worker:', error);
+    throw error;
+  }
 }
 
 module.exports = {
