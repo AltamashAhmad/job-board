@@ -29,6 +29,32 @@ jobQueue.on('error', (error) => {
   console.error('Queue error:', error);
 });
 
+// Add job to queue
+async function addJob(queueName, data, options = {}) {
+  try {
+    const job = await jobQueue.add(queueName, data, options);
+    console.log(`Added job ${job.id} to queue ${queueName}`);
+    return job;
+  } catch (error) {
+    console.error(`Error adding job to queue ${queueName}:`, error);
+    throw error;
+  }
+}
+
+// Get job counts
+async function getJobCounts(queueName) {
+  try {
+    const counts = await jobQueue.getJobCounts();
+    console.log(`Job counts for queue ${queueName}:`, counts);
+    return counts;
+  } catch (error) {
+    console.error(`Error getting job counts for queue ${queueName}:`, error);
+    throw error;
+  }
+}
+
 module.exports = {
-  jobQueue
+  jobQueue,
+  addJob,
+  getJobCounts
 }; 

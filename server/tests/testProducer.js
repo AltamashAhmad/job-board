@@ -1,8 +1,10 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { createWorker } = require('../config/redis');
+const { QUEUE_NAMES } = require('../config/constants');
+const Job = require('../models/Job');
 const jobFetchService = require('../services/jobFetchService');
 const { JOB_SOURCES } = require('../config/jobSources');
-const { createWorker, QUEUE_NAMES } = require('../config/redis');
 
 async function testProducer() {
   try {

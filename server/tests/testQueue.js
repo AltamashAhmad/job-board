@@ -1,5 +1,6 @@
 require('dotenv').config();
-const { createQueue, QUEUE_NAMES } = require('../config/redis');
+const { createQueue } = require('../config/redis');
+const { QUEUE_NAMES } = require('../config/constants');
 const mongoose = require('mongoose');
 const ImportLog = require('../models/ImportLog');
 
