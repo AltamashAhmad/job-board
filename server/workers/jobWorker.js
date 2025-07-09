@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Worker } = require('bullmq');
 const { createRedisClient } = require('../config/redis');
 const { QUEUE_NAMES } = require('../config/constants');
+const { MAX_CONCURRENCY } = require('../queues/queueManager');
 const Job = require('../models/Job');
 const mongoose = require('mongoose');
 
@@ -46,7 +47,7 @@ async function startWorker() {
 
     const worker = new Worker(QUEUE_NAMES.JOB_IMPORT, processJob, {
       connection,
-      concurrency: 5,
+      concurrency: MAX_CONCURRENCY,
       removeOnComplete: {
         age: 3600, // Keep completed jobs for 1 hour
         count: 1000 // Keep last 1000 completed jobs
@@ -68,7 +69,7 @@ async function startWorker() {
       console.error('Worker error:', err);
     });
 
-    console.log('Job worker started');
+    console.log(`Job worker started with concurrency ${MAX_CONCURRENCY}`);
     return worker;
   } catch (error) {
     console.error('Error starting worker:', error);
