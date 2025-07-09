@@ -1,21 +1,23 @@
 const Redis = require('ioredis');
 
 function createRedisClient(isWorker = false) {
-  const config = {
-    url: process.env.REDIS_URL,
-    lazyConnect: true // Only connect when needed
-  };
-
-  // BullMQ workers require maxRetriesPerRequest to be null
-  if (!isWorker) {
-    config.maxRetriesPerRequest = 3;
-    config.retryStrategy = function(times) {
-      const delay = Math.min(times * 50, 2000);
-      return delay;
-    };
+  if (!process.env.REDIS_URL) {
+    throw new Error('REDIS_URL environment variable is not set');
   }
 
-  const client = new Redis(config);
+  const config = {
+    // Parse the full Redis URL instead of passing it directly
+    ...new URL(process.env.REDIS_URL),
+    lazyConnect: true,
+    enableReadyCheck: true,
+    maxRetriesPerRequest: isWorker ? null : 3,
+    retryStrategy(times) {
+      const delay = Math.min(times * 50, 2000);
+      return delay;
+    }
+  };
+
+  const client = new Redis(process.env.REDIS_URL, config);
 
   client.on('error', (error) => {
     console.error('Redis connection error:', error.message);
