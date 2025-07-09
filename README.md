@@ -16,36 +16,35 @@ A scalable job board application that aggregates jobs from multiple sources, pro
 
 - **Backend**: Node.js, Express
 - **Frontend**: React, TailwindCSS
-- **Database**: MongoDB Atlas
-- **Queue**: Redis Cloud (BullMQ)
-- **Deployment**: Render (Backend), Vercel (Frontend)
+- **Database**: MongoDB (Local)
+- **Queue**: Redis (Local) with BullMQ
+- **Development**: Local development environment
 
 ## Prerequisites
 
 - Node.js >= 18.0.0
-- MongoDB Atlas account
-- Redis Cloud account
-- Render account (for deployment)
-- Vercel account (for frontend deployment)
+- MongoDB (Local installation)
+- Redis (Local installation)
+- Git
 
 ## Environment Variables
 
-### Backend (.env)
+### Backend (server/.env)
 
 ```env
 NODE_ENV=development
-PORT=3000
-MONGODB_URI=your_mongodb_uri
-REDIS_URL=your_redis_url
+PORT=5002
+MONGODB_URI=mongodb://localhost:27017/job_board
+REDIS_URL=redis://localhost:6379
 CORS_ORIGIN=http://localhost:3000
 QUEUE_BATCH_SIZE=10
 QUEUE_MAX_CONCURRENCY=5
 ```
 
-### Frontend (.env)
+### Frontend (client/.env)
 
 ```env
-REACT_APP_API_URL=http://localhost:3000
+REACT_APP_API_URL=http://localhost:5002
 ```
 
 ## Local Development
@@ -68,8 +67,8 @@ REACT_APP_API_URL=http://localhost:3000
    ```
 
 3. Set up environment variables:
-   - Copy `.env.example` to `.env` in both server and client directories
-   - Update the variables with your credentials
+   - Copy `env.example` to `.env` in both server and client directories
+   - The example files already contain the correct local development values
 
 4. Start the development servers:
    ```bash
@@ -80,22 +79,50 @@ REACT_APP_API_URL=http://localhost:3000
    npm start
    ```
 
-## Deployment
+## Local Development Setup
 
-### Backend (Render)
+### Prerequisites Installation
 
-1. Fork this repository
-2. Create a new Web Service on Render
-3. Connect your GitHub repository
-4. Configure environment variables in Render dashboard
-5. Deploy
+1. **Install MongoDB**:
+   ```bash
+   # macOS (using Homebrew)
+   brew install mongodb-community
+   brew services start mongodb-community
+   
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install mongodb
+   sudo systemctl start mongodb
+   
+   # Windows
+   # Download from https://www.mongodb.com/try/download/community
+   ```
 
-### Frontend (Vercel)
+2. **Install Redis**:
+   ```bash
+   # macOS (using Homebrew)
+   brew install redis
+   brew services start redis
+   
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install redis-server
+   sudo systemctl start redis-server
+   
+   # Windows
+   # Download from https://redis.io/download
+   ```
 
-1. Push your frontend code to a GitHub repository
-2. Import the repository in Vercel
-3. Configure environment variables
-4. Deploy
+### Verification
+
+Verify your installations:
+```bash
+# Check MongoDB
+mongosh --eval "db.runCommand('ping')"
+
+# Check Redis
+redis-cli ping
+```
 
 ## API Documentation
 
