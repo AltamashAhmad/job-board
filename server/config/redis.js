@@ -1,14 +1,21 @@
 const Redis = require('ioredis');
 
-function createRedisClient() {
-  const client = new Redis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: 3,
-    retryStrategy(times) {
+function createRedisClient(isWorker = false) {
+  const config = {
+    url: process.env.REDIS_URL,
+    lazyConnect: true // Only connect when needed
+  };
+
+  // BullMQ workers require maxRetriesPerRequest to be null
+  if (!isWorker) {
+    config.maxRetriesPerRequest = 3;
+    config.retryStrategy = function(times) {
       const delay = Math.min(times * 50, 2000);
       return delay;
-    },
-    lazyConnect: true // Only connect when needed
-  });
+    };
+  }
+
+  const client = new Redis(config);
 
   client.on('error', (error) => {
     console.error('Redis connection error:', error.message);
@@ -29,8 +36,8 @@ function createRedisClient() {
   return client;
 }
 
-// Create Redis connection
-const connection = createRedisClient();
+// Create default Redis connection for general use
+const connection = createRedisClient(false);
 
 // Queue names
 const QUEUE_NAMES = {
@@ -39,6 +46,6 @@ const QUEUE_NAMES = {
 
 module.exports = {
   connection,
+  createRedisClient,
   QUEUE_NAMES,
-  createRedisClient
 }; 

@@ -1,45 +1,33 @@
 const { Queue } = require('bullmq');
-const { connection, QUEUE_NAMES } = require('../config/redis');
+const { createRedisClient, QUEUE_NAMES } = require('../config/redis');
 
-class QueueManager {
-  constructor() {
-    this.queues = {};
-  }
+// Create Redis connection for the queue
+const connection = createRedisClient(false);
 
-  getQueue(queueName) {
-    if (!this.queues[queueName]) {
-      this.queues[queueName] = new Queue(queueName, {
-        connection,
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 1000
-          }
-        }
-      });
+// Create job queue
+const jobQueue = new Queue(QUEUE_NAMES.JOB_IMPORT, {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1000
+    },
+    removeOnComplete: {
+      age: 3600, // Keep completed jobs for 1 hour
+      count: 1000 // Keep last 1000 completed jobs
+    },
+    removeOnFail: {
+      age: 24 * 3600 // Keep failed jobs for 24 hours
     }
-    return this.queues[queueName];
   }
+});
 
-  async addJob(queueName, data, opts = {}) {
-    const queue = this.getQueue(queueName);
-    const job = await queue.add(`job-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`, data, opts);
-    console.log(`Job ${job.id} added to queue ${queueName}`);
-    return job;
-  }
+// Handle queue events
+jobQueue.on('error', (error) => {
+  console.error('Queue error:', error);
+});
 
-  async getJobCounts(queueName) {
-    const queue = this.getQueue(queueName);
-    return await queue.getJobCounts();
-  }
-
-  // Add method to clear queue
-  async clearQueue(queueName) {
-    const queue = this.getQueue(queueName);
-    await queue.obliterate();
-    console.log(`Queue ${queueName} cleared`);
-  }
-}
-
-module.exports = new QueueManager(); 
+module.exports = {
+  jobQueue
+}; 

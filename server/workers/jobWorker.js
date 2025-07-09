@@ -1,142 +1,76 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
 const { Worker } = require('bullmq');
-const { QUEUE_NAMES, connection } = require('../config/redis');
+const { createRedisClient, QUEUE_NAMES } = require('../config/redis');
 const Job = require('../models/Job');
-const ImportLog = require('../models/ImportLog');
+const mongoose = require('mongoose');
 
-// Connect to MongoDB
-async function connectDB() {
+async function processJob(job) {
+  console.log(`Processing job ${job.id}`);
   try {
-    if (!mongoose.connection.readyState) {
-      await mongoose.connect(process.env.MONGODB_URI);
-      console.log('Worker connected to MongoDB');
-    }
-  } catch (err) {
-    console.error('Worker MongoDB connection error:', err);
-    throw err;
-  }
-}
-
-async function processJob(jobData) {
-  await connectDB(); // Ensure DB connection before processing
-  
-  try {
-    const { job, importLogId } = jobData;
-    console.log(`Processing job: ${job.title}`);
-
-    // Find the import log
-    const importLog = await ImportLog.findById(importLogId);
-    if (!importLog) {
-      throw new Error(`Import log not found for ID: ${importLogId}`);
-    }
-
-    // Try to find existing job
-    const existingJob = await Job.findOne({
-      source: job.source,
-      externalId: job.externalId
+    const jobData = job.data;
+    
+    // Check if job already exists
+    const existingJob = await Job.findOne({ 
+      sourceId: jobData.sourceId,
+      source: jobData.source 
     });
 
-    let result;
-    let updateType;
-
-    try {
-      if (existingJob) {
-        // Update existing job
-        result = await Job.findByIdAndUpdate(
-          existingJob._id,
-          { ...job, lastUpdated: new Date() },
-          { new: true }
-        );
-        updateType = 'updated';
-      } else {
-        // Create new job
-        result = await Job.create({
-          ...job,
-          createdAt: new Date(),
-          lastUpdated: new Date()
-        });
-        updateType = 'new';
-      }
-
-      // Update import log metrics
-      await importLog.updateMetrics(updateType);
-
-      console.log(`Job ${updateType}: ${result.title}`);
-      return { success: true, jobId: result._id, updateType };
-    } catch (error) {
-      // Update failed jobs count
-      await importLog.updateMetrics('failed');
-      throw error;
+    if (existingJob) {
+      console.log(`Job ${jobData.sourceId} from ${jobData.source} already exists, updating...`);
+      await Job.findByIdAndUpdate(existingJob._id, jobData);
+      return { status: 'updated', jobId: existingJob._id };
     }
+
+    // Create new job
+    const newJob = new Job(jobData);
+    await newJob.save();
+    console.log(`Created new job ${newJob._id}`);
+    return { status: 'created', jobId: newJob._id };
+
   } catch (error) {
-    console.error('Job processing error:', {
-      error: error.message,
-      stack: error.stack,
-      jobData: jobData.job
-    });
+    console.error('Error processing job:', error);
     throw error;
   }
 }
 
-// Create worker with optimized concurrency and settings
-const worker = new Worker(QUEUE_NAMES.JOB_IMPORT, async (job) => {
-  console.log(`Processing job: ${job.data.job.title}`);
-  return await processJob(job.data);
-}, {
-  connection,
-  concurrency: 5,
-  removeOnComplete: {
-    age: 24 * 3600,
-    count: 1000
-  },
-  removeOnFail: {
-    age: 7 * 24 * 3600
+async function startWorker() {
+  // Ensure MongoDB is connected
+  if (mongoose.connection.readyState !== 1) {
+    await mongoose.connect(process.env.MONGODB_URI);
   }
-});
 
-// Handle completion
-worker.on('completed', async (job, result) => {
-  await connectDB(); // Ensure DB connection
-  
-  try {
-    const { importLogId } = job.data;
-    const importLog = await ImportLog.findById(importLogId);
-    
-    if (importLog && importLog.isComplete()) {
-      const finalStatus = importLog.getFinalStatus();
-      await ImportLog.findByIdAndUpdate(importLogId, {
-        status: finalStatus,
-        endTime: new Date(),
-        duration: new Date() - importLog.startTime
-      });
-      console.log(`Import completed for ${importLog.source} with status: ${finalStatus}`);
+  // Create Redis connection specifically for the worker
+  const connection = createRedisClient(true);
+
+  const worker = new Worker(QUEUE_NAMES.JOB_IMPORT, processJob, {
+    connection,
+    concurrency: 5,
+    removeOnComplete: {
+      age: 3600, // Keep completed jobs for 1 hour
+      count: 1000 // Keep last 1000 completed jobs
+    },
+    removeOnFail: {
+      age: 24 * 3600 // Keep failed jobs for 24 hours
     }
-  } catch (error) {
-    console.error('Error in completion handler:', error);
-  }
-});
+  });
 
-// Handle failures
-worker.on('failed', async (job, error) => {
-  await connectDB(); // Ensure DB connection
-  
-  try {
-    const { importLogId } = job.data;
-    const importLog = await ImportLog.findById(importLogId);
-    if (importLog) {
-      await importLog.updateMetrics('failed');
-      console.error(`Job failed: ${error.message}`);
-    }
-  } catch (err) {
-    console.error('Error in failure handler:', err);
-  }
-});
+  worker.on('completed', (job) => {
+    console.log(`Job ${job.id} completed successfully`);
+  });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  await worker.close();
-  await mongoose.disconnect();
-});
+  worker.on('failed', (job, err) => {
+    console.error(`Job ${job.id} failed:`, err);
+  });
 
-module.exports = worker; 
+  worker.on('error', (err) => {
+    console.error('Worker error:', err);
+  });
+
+  console.log('Job worker started');
+  return worker;
+}
+
+module.exports = {
+  startWorker,
+  processJob
+}; 
