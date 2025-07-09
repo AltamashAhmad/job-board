@@ -6,7 +6,7 @@ services:
     startCommand: cd server && npm install && node index.js
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://altamashahmadajaz2:Hack_1234@cluster0.2wylgjh.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
+        value: mongodb+srv://altamashahmadajaz2:Hack_1234@cluster0.2wylgjh.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0&tls=true
       - key: REDIS_URL
         value: redis://default:9Dst48U4sBjJC9w4wSHBZVmqRm5UinE3@redis-11515.crce182.ap-south-1-1.ec2.redns.redis-cloud.com:11515
       - key: NODE_ENV
@@ -20,7 +20,7 @@ services:
     startCommand: cd server && npm install && node workers/startWorker.js
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://altamashahmadajaz2:Hack_1234@cluster0.2wylgjh.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0
+        value: mongodb+srv://altamashahmadajaz2:Hack_1234@cluster0.2wylgjh.mongodb.net/job-board?retryWrites=true&w=majority&appName=Cluster0&tls=true
       - key: REDIS_URL
         value: redis://default:9Dst48U4sBjJC9w4wSHBZVmqRm5UinE3@redis-11515.crce182.ap-south-1-1.ec2.redns.redis-cloud.com:11515
       - key: NODE_ENV

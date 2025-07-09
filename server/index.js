@@ -63,12 +63,9 @@ async function startServer() {
   try {
     // Connect to MongoDB with updated options
     await mongoose.connect(process.env.MONGODB_URI, {
-      ssl: true,
-      sslValidate: true,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      retryWrites: true,
-      w: 'majority'
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4
     });
     console.log('Connected to MongoDB');
 
