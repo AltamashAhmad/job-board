@@ -1,5 +1,6 @@
 const { Queue } = require('bullmq');
-const { createRedisClient, QUEUE_NAMES } = require('../config/redis');
+const { createRedisClient } = require('../config/redis');
+const { QUEUE_NAMES } = require('../config/constants');
 
 // Create Redis connection for the queue
 const connection = createRedisClient(false);

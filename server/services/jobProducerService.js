@@ -1,5 +1,5 @@
 const queueManager = require('../queues/queueManager');
-const { QUEUE_NAMES } = require('../config/redis');
+const { QUEUE_NAMES } = require('../config/constants');
 const ImportLog = require('../models/ImportLog');
 
 class JobProducerService {
