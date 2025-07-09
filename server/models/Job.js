@@ -57,8 +57,7 @@ const jobSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['active', 'expired', 'filled', 'draft'],
-    default: 'active',
-    index: true
+    default: 'active'
   },
   applicationDeadline: Date,
   skills: [{
