@@ -63,9 +63,12 @@ async function startServer() {
   try {
     // Connect to MongoDB with updated options
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      family: 4
+      connectTimeoutMS: 10000,
+      heartbeatFrequencyMS: 30000,
+      retryWrites: true,
+      w: 'majority'
     });
     console.log('Connected to MongoDB');
 
